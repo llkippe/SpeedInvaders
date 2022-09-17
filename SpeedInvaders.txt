@@ -1,0 +1,316 @@
+var phase = 0 // 0 = starting screen, 1 = running, 2 = gameover
+var car;
+var drivingSpeed = 4;
+var score = 0;
+var aKey;
+var dKey;
+
+var street;
+var laneMarkings = [];
+var obstacles = [];
+var streetlamps = [];
+
+var carImg;
+var trafficconeImg;
+
+function preload() {
+  carImg = loadImage('car.png');
+  trafficconeImg = loadImage('trafficcone.png');
+}
+
+function setup() {
+  createCanvas(500, 600);
+  textAlign(CENTER)
+  car = new CAR();
+  street = new STREET();
+  
+  carImg.resize(car.width, car.height);
+  trafficconeImg.resize(20,25);
+}
+
+function draw() {
+  background(20, 26, 20);
+ // if(phase!=1) 
+  
+  street.show();
+  updateLaneMarkings()
+  car.update();
+  updateStreetLamps();
+  
+  if(phase == 1) {
+    updateObstacles();
+    
+    if(frameCount%100 == 0) drivingSpeed += 0.2;
+    
+    fill(255);
+    noStroke();
+    textSize(18);
+    text("Speed: " + nf(drivingSpeed,1,1),width-50, 40);
+  }
+  
+  
+  if(phase == 0) {
+    noStroke()
+    fill(255)
+    textSize(40)
+    text("Speed Invaders",width/2, height/2);
+    textSize(14)
+    text("press SPACE to start", width/2, height*3/4)
+  }
+  if(phase == 2){
+    fill(224, 47, 11);
+    textSize(45);
+    strokeWeight(2);
+    stroke(232, 209, 204);
+    text("GAME OVER", width/2, height/2);
+
+    noStroke();
+    fill(255);
+    textSize(13)
+    text("press SPACE to start", width/2, height*3/4)
+    
+    textSize(15)
+    text("Speed: " + score, width/2, height*3/5)
+  }
+}
+
+function updateLaneMarkings(){
+   if(frameCount % (30- int(drivingSpeed)) == 0) laneMarkings.push(new LANEMARKING()); // adding laneMarkings every 30 frames
+  for(let i = 0; i < laneMarkings.length; i++) laneMarkings[i].update();
+  for(let i = laneMarkings.length-1; i >= 0 ; i--) if(laneMarkings[i].pos.y > height) laneMarkings.splice(i,1); // remove old lanemarkings
+}
+
+function updateObstacles() {
+  if(frameCount % (35- int(drivingSpeed)) == 0) obstacles.push(new OBSTACLE()); // adding obstacles every 30 frames
+  for(let i = 0; i < obstacles.length; i++) obstacles[i].update();
+  for(let i = obstacles.length-1; i >= 0 ; i--) if(obstacles[i].pos.y > height) obstacles.splice(i,1);
+}
+
+function updateStreetLamps() {
+  if(frameCount % 70 == 0) {
+    streetlamps.push(new STREETLAMP("left"));
+    streetlamps.push(new STREETLAMP("right"));
+  }
+  for(let i = 0; i < streetlamps.length; i++) streetlamps[i].update();
+  for(let i = streetlamps.length-1; i >= 0 ; i--) if(streetlamps[i].pos.y > height) streetlamps.splice(i,1);
+}
+
+
+function keyPressed() {
+  if(key == 'a') aKey = true;
+  if(key == 'd') dKey = true;
+  if(key == ' ') phase = 1;
+}
+function keyReleased() {
+  if(key == 'a') aKey = false;
+  if(key == 'd') dKey = false;
+}
+
+function restart(){
+  phase = 2;
+  obstacles = []
+  score = drivingSpeed;
+  drivingSpeed = 4;
+}
+
+
+
+class CAR {
+  constructor() {
+    // Konstanten
+    this.width = 30;
+    this.height = 55;
+    this.speed = 3;
+    
+    this.pos = createVector(width/2 - this.width/2, height - 100 - this.height)
+    
+  }
+  // Diese Funktion Updatet alle Funktionen des Autos
+  update() {
+    this.move();
+    this.show();
+  }
+  
+  // Zeichnet das Auto
+  show() {
+    noFill();
+    stroke(255);
+    strokeWeight(2);
+    //rect(this.pos.x, this.pos.y, this.width, this.height);
+    image(carImg, this.pos.x, this.pos.y);
+  }
+  // bewegt das auto wenn a oder dKey true ist
+  move() {
+    if(aKey == true) this.pos.x -= this.speed;
+    else if(dKey == true) this.pos.x += this.speed;
+  }
+}
+
+
+
+class LANEMARKING {
+  constructor() {
+    // Konstanten
+    this.width = 5;
+    this.height = 30;
+    this.n_lanes = 4
+    
+    this.pos = createVector(street.pos.x, -this.height);
+  }
+  update(){
+    this.move();
+    this.show();
+  }
+  
+  // zeichnet die lane markings
+  show() {
+    drawingContext.shadowBlur = 2;
+    drawingContext.shadowColor = color(255,255,255);
+    noStroke();
+    fill(200);
+    for(let i = 1; i < this.n_lanes; i++){
+      rect(this.pos.x + street.width/this.n_lanes * i, this.pos.y, this.width, this.height);
+    }
+    drawingContext.shadowBlur = 0;
+  }
+  
+  // bewegt lane markings nach unten
+  move() {
+    this.pos.y += drivingSpeed;
+  }  
+}
+
+
+
+class OBSTACLE {
+  constructor() {
+    this.width = 20;
+    this.height = 25;
+    
+    this.pos = createVector(random(street.pos.x, street.pos.x + street.width - this.width), -this.height);
+  }
+  update(){
+    this.move()
+    this.collisionWithPlayer();
+    this.show()
+  }
+  show(){
+    noFill();
+    stroke(255);
+    //rect(this.pos.x, this.pos.y, this.width, this.height);
+    image(trafficconeImg, this.pos.x, this.pos.y);
+  }
+  move(){
+    this.pos.y += drivingSpeed;
+  }
+  collisionWithPlayer() {
+   if(this.pos.x < car.pos.x + car.width &&
+    this.pos.x + this.width > car.pos.x &&
+    this.pos.y < car.pos.y + car.height &&
+    this.height + this.pos.y > car.pos.y) restart();
+  }
+}
+
+
+
+class STREET {
+  constructor() {
+    //Konstanten
+    this.width = width*2/3;
+    this.height = height;
+    
+    this.pos = createVector((width-width*2/3)/2, 0);
+    
+  }
+  // zeichnet Strasse
+  show() {
+    noStroke();
+    fill(25);
+    rect(this.pos.x,this.pos.y,this.width, this.height);
+    
+    stroke(120, 120, 46)
+    strokeWeight(3)
+    line(this.pos.x + 9, this.pos.y, this.pos.x +9, height);
+    line(this.pos.x + this.width - 9, this.pos.y, this.pos.x + this.width - 9, height);
+  }
+}
+
+
+class STREETLAMP {
+  constructor(streetside) {
+    this.streetside = streetside;
+    if(streetside == "left") this.pos = createVector(street.pos.x - 15, -100);
+    else this.pos = createVector(street.pos.x + street.width + 15, -100);
+  }
+  update(){
+    this.move()
+    this.show()
+  }
+  show(){
+    
+    stroke(100);
+    
+    if(this.streetside == "left") {
+    noFill();
+    beginShape();
+    curveVertex(this.pos.x - 2, this.pos.y + 60);
+    curveVertex(this.pos.x - 2, this.pos.y + 60);
+    curveVertex(this.pos.x, this.pos.y + 20);
+    curveVertex(this.pos.x + 20, this.pos.y);
+    curveVertex(this.pos.x + 40, this.pos.y + 10);
+    curveVertex(this.pos.x + 40, this.pos.y + 10);
+    endShape();
+    fill(60);
+    arc(this.pos.x + 40, this.pos.y + 20, 20, 15, PI, PI + PI, CHORD);
+      
+    drawingContext.shadowBlur = 60;
+    drawingContext.shadowColor = color(252, 252, 149);
+    fill(252, 252, 149, 90);
+      noStroke();
+    beginShape();
+    vertex(this.pos.x + 30, this.pos.y + 22);
+    vertex(this.pos.x + 25, this.pos.y + 80);
+    vertex(this.pos.x + 80, this.pos.y + 80);
+      vertex(this.pos.x + 50, this.pos.y + 22);
+      endShape();
+      drawingContext.shadowBlur = 0
+    }else {
+      noFill();
+    beginShape();
+    curveVertex(this.pos.x + 2, this.pos.y + 60);
+    curveVertex(this.pos.x + 2, this.pos.y + 60);
+    curveVertex(this.pos.x, this.pos.y + 20);
+    curveVertex(this.pos.x - 20, this.pos.y);
+    curveVertex(this.pos.x - 40, this.pos.y + 10);
+    curveVertex(this.pos.x - 40, this.pos.y + 10);
+    endShape();
+    fill(60);
+    arc(this.pos.x - 40, this.pos.y + 20, 20, 15, PI, PI + PI, CHORD);
+      
+     drawingContext.shadowBlur = 60;
+    drawingContext.shadowColor = color(252, 252, 149);
+    fill(252, 252, 149, 90);
+      noStroke();
+    beginShape();
+    vertex(this.pos.x - 30, this.pos.y + 22);
+    vertex(this.pos.x - 25, this.pos.y + 80);
+    vertex(this.pos.x - 80, this.pos.y + 80);
+      vertex(this.pos.x - 50, this.pos.y + 22);
+      endShape();
+      drawingContext.shadowBlur = 0 
+    }
+  }
+  move(){
+    this.pos.y += drivingSpeed;
+  }
+}
+
+
+
+
+
+
+
+
+
+
